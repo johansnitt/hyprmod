@@ -117,18 +117,17 @@ class BezierEditor(Gtk.Box):
     def _build_preset_list(self):
         """Build preset dropdown data as (name, label, points) tuples.
 
-        Order: user curves (starred), then external (includes native), then builtins.
+        Order matches get_all_curve_names: user (starred) → external → native → builtins.
         """
         store = get_curve_store()
-        user_curves = store.load_user_curves()
-        ext_curves = store.get_external_curves()
+        user_set = set(store.get_user_curve_names())
         self._presets: list[tuple[str, str, tuple]] = []
-        for name, points in user_curves.items():
-            self._presets.append((name, f"\u2605 {name}", points))
-        for name, points in ext_curves.items():
-            self._presets.append((name, name, points))
-        for name, points in BUILTIN_PRESETS.items():
-            self._presets.append((name, name, points))
+        for name in store.get_all_curve_names():
+            points = store.get_curve_points(name)
+            if points is None:
+                continue
+            label = f"\u2605 {name}" if name in user_set else name
+            self._presets.append((name, label, points))
 
     def _make_point_row(self, label, x_val, y_val, x_lo, x_hi, y_lo, y_hi):
         """Build an ActionRow with two labelled SpinButtons for X and Y."""

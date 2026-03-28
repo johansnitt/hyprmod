@@ -22,6 +22,7 @@ class BezierCurveStore:
         self._path = curves_path
         self._user_curves: dict[str, tuple] | None = None
         self._external_curves: dict[str, tuple] = {}
+        self._native_curves: dict[str, tuple] = {}
 
     def _ensure_user_curves(self) -> dict[str, tuple]:
         """Load user curves from the disk on first access."""
@@ -71,9 +72,14 @@ class BezierCurveStore:
         """Return a sorted list of user curve names."""
         return sorted(self._ensure_user_curves().keys())
 
-    def set_external_curves(self, curves: dict[str, tuple[float, float, float, float]]) -> None:
-        """Set external curves from ``Animations.get_curves()`` result."""
-        self._external_curves = dict(curves)
+    def set_hyprland_curves(self, curves: dict[str, tuple[float, float, float, float]]) -> None:
+        """Set curves from ``Animations.get_curves()`` result."""
+        self._native_curves = {
+            k: v for k, v in curves.items() if k in HYPRLAND_NATIVE_CURVES
+        }
+        self._external_curves = {
+            k: v for k, v in curves.items() if k not in HYPRLAND_NATIVE_CURVES
+        }
 
     def get_external_curves(self) -> dict[str, tuple]:
         """Return external curves (from Hyprland, not user-defined)."""
@@ -96,16 +102,19 @@ class BezierCurveStore:
             return BUILTIN_PRESETS[name]
         if name in self._external_curves:
             return self._external_curves[name]
+        if name in self._native_curves:
+            return self._native_curves[name]
         return None
 
     def get_all_curve_names(self) -> list[str]:
-        """Return all known curve names: native + builtin + external + user."""
-        names = list(HYPRLAND_NATIVE_CURVES)
-        seen = set(names)
+        """Return all known curve names: user + external + native + builtin."""
+        names: list[str] = []
+        seen: set[str] = set()
         for source in (
-            sorted(BUILTIN_PRESETS),
-            sorted(self._external_curves),
             sorted(self._ensure_user_curves()),
+            sorted(self._external_curves),
+            sorted(HYPRLAND_NATIVE_CURVES),
+            sorted(BUILTIN_PRESETS),
         ):
             for name in source:
                 if name not in seen:

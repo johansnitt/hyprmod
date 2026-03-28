@@ -671,7 +671,7 @@ class HyprModWindow(Adw.ApplicationWindow):
         """Called when any section (animations, binds, monitors) changes."""
         self._update_banner()
         self._update_sidebar_badges()
-        if self.auto_save:
+        if self.auto_save and self.has_dirty():
             self._schedule_auto_save()
 
     # -- Undo / Redo --
@@ -796,7 +796,7 @@ class HyprModWindow(Adw.ApplicationWindow):
         # Reload animations owned names from new config
         if self._animations_page is not None:
             self._animations_page.load_owned_names()
-            self._animations_page.load_external_curves()
+            self._animations_page.load_hyprland_curves()
 
         # Binds still need manual reload (no library-level state)
         if self._binds_page is not None:

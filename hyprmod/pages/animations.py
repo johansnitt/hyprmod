@@ -92,7 +92,7 @@ class AnimationsPage:
         # Initialize library cache from IPC
         self._anims.sync()
         self.load_owned_names(saved_sections)
-        self.load_external_curves()
+        self.load_hyprland_curves()
 
         # Subscribe to reactive change notifications
         window.hypr.on_change(self._on_hypr_change)
@@ -173,9 +173,9 @@ class AnimationsPage:
                 names.add(parts[0])
         self._ownership = OwnershipSet(names)
 
-    def load_external_curves(self):
-        """Load external bezier curves from Hyprland."""
-        get_curve_store().set_external_curves(self._anims.get_curves())
+    def load_hyprland_curves(self):
+        """Load bezier curves from Hyprland."""
+        get_curve_store().set_hyprland_curves(self._anims.get_curves())
 
     def _promote_to_overridden(self, name: str) -> AnimState:
         """Promote an inherited animation to overridden, copying effective values.
