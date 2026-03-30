@@ -96,17 +96,26 @@ class Sidebar:
         scrolled.set_vexpand(True)
         content.append(scrolled)
 
-        # Profiles list (pinned below the scrolled area)
-        self._profiles_list = Gtk.ListBox()
-        self._profiles_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self._profiles_list.add_css_class("navigation-sidebar")
-        self._profiles_list.connect("row-selected", self._on_row_selected)
-        self._lists.append(self._profiles_list)
+        # Pinned list below the scrolled area (profiles + settings).
+        # Added to self._lists in populate() so select_first() picks schema rows.
+        self._pinned_list = Gtk.ListBox()
+        self._pinned_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self._pinned_list.add_css_class("navigation-sidebar")
+        self._pinned_list.connect("row-selected", self._on_row_selected)
+
         profiles_row = SidebarRow(group_id="profiles", title="Profiles")
         profiles_row.set_activatable(True)
         profiles_row.add_prefix(Gtk.Image.new_from_icon_name("user-bookmarks-symbolic"))
-        self._profiles_list.append(profiles_row)
-        content.append(self._profiles_list)
+        self._pinned_list.append(profiles_row)
+        self._rows_by_id["profiles"] = profiles_row
+
+        settings_row = SidebarRow(group_id="settings", title="Settings")
+        settings_row.set_activatable(True)
+        settings_row.add_prefix(Gtk.Image.new_from_icon_name("emblem-system-symbolic"))
+        self._pinned_list.append(settings_row)
+        self._rows_by_id["settings"] = settings_row
+
+        content.append(self._pinned_list)
 
         content.append(self._dna)
 
@@ -159,6 +168,9 @@ class Sidebar:
         add_schema_row(other, "xwayland")
         add_schema_row(other, "ecosystem")
         add_schema_row(other, "misc")
+
+        # Pinned list goes last so select_first() picks schema rows
+        self._lists.append(self._pinned_list)
 
     def select_first(self) -> None:
         """Select the first row in the first list."""

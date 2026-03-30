@@ -313,7 +313,7 @@ class AnimationsPage:
         either a user-defined override from their own config or the
         inherited value from the parent animation chain.
         """
-        fallback = self._anims.get_fallback(name, config.GUI_CONF)
+        fallback = self._anims.get_fallback(name, config.gui_conf())
         if fallback:
             # User has their own animation line — apply it
             self._apply_with_curves(fallback)

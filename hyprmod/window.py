@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk
-from hyprland_config import coerce_config_value
+from hyprland_config import coerce_config_value, value_to_conf
 from hyprland_socket import HyprlandError
 from hyprland_state import ANIM_LOOKUP, HyprlandState
 
@@ -23,6 +23,7 @@ from hyprmod.pages.animations import AnimationsPage
 from hyprmod.pages.binds import BindsPage
 from hyprmod.pages.monitors import MonitorsPage
 from hyprmod.pages.profiles import ProfilesPage
+from hyprmod.pages.settings import SettingsPage
 from hyprmod.ui import OptionRow, clear_children, confirm, create_option_row, make_page_layout
 from hyprmod.ui.banner import DirtyBanner
 from hyprmod.ui.options import digits_for_step
@@ -51,6 +52,9 @@ class HyprModWindow(Adw.ApplicationWindow):
         self.set_title("HyprMod")
         self.set_default_size(900, 650)
 
+        self._init_settings()
+        self._apply_saved_config_path()
+
         self._schema = schema.load_schema()
         self._saved_values, self._saved_sections = config.read_all_sections()
         self.hypr = HyprlandState()
@@ -72,10 +76,10 @@ class HyprModWindow(Adw.ApplicationWindow):
         self._monitors_page: MonitorsPage | None = None
         self._binds_page: BindsPage | None = None
         self._profiles_page: ProfilesPage | None = None
+        self._settings_page: SettingsPage | None = None
         self._pre_search_page_id: str | None = None
         self._search_results: list | None = None
 
-        self._init_settings()
         self._load_css()
         self._build_ui()
         self._register_state()
@@ -94,6 +98,13 @@ class HyprModWindow(Adw.ApplicationWindow):
         else:
             self._settings = None
 
+    def _apply_saved_config_path(self):
+        """Apply the config-path setting from GSettings on startup."""
+        if self._settings:
+            path = self._settings.get_string("config-path")
+            if path:
+                config.set_gui_conf(Path(path))
+
     @property
     def auto_save(self) -> bool:
         if self._settings:
@@ -104,6 +115,18 @@ class HyprModWindow(Adw.ApplicationWindow):
     def auto_save(self, value: bool):
         if self._settings:
             self._settings.set_boolean("auto-save", value)
+
+    @property
+    def config_path(self) -> str:
+        return str(config.gui_conf())
+
+    @config_path.setter
+    def config_path(self, value: str):
+        default = str(config._DEFAULT_GUI_CONF)
+        path = None if value == default else Path(value)
+        config.set_gui_conf(path)
+        if self._settings:
+            self._settings.set_string("config-path", "" if path is None else value)
 
     def _load_css(self):
         if CSS_PATH.exists():
@@ -246,6 +269,11 @@ class HyprModWindow(Adw.ApplicationWindow):
         self._page_stack.add_named(profiles_nav, "profiles")
         self._page_titles["profiles"] = "Profiles"
 
+        self._settings_page = SettingsPage(self)
+        settings_nav = self._settings_page.build(header=self._make_page_header("Settings"))
+        self._page_stack.add_named(settings_nav, "settings")
+        self._page_titles["settings"] = "Settings"
+
         return groups, groups_by_id
 
     def _build_search_page(self):
@@ -383,12 +411,16 @@ class HyprModWindow(Adw.ApplicationWindow):
             self._anim_details_box.set_visible(bool(state and state.live_value))
 
     def _update_dna(self):
-        """Update the sidebar DNA graphic from current live values."""
-        self._sidebar.update_dna(self.app_state.get_all_live_values())
+        """Update the sidebar DNA graphic from saved values."""
+        saved = {
+            key: value_to_conf(s.saved_value)
+            for key, s in self.app_state.options.items()
+            if s.saved_managed
+        }
+        self._sidebar.update_dna(saved)
 
     def _notify_ui_change(self):
-        """Update DNA, banner, and sidebar badges after an option change."""
-        self._update_dna()
+        """Update banner and sidebar badges after an option change."""
         self._update_banner()
         self._update_sidebar_badges()
 
@@ -617,7 +649,7 @@ class HyprModWindow(Adw.ApplicationWindow):
         if key not in self._option_rows:
             return
 
-        fallback = self.hypr.get_fallback_value(key, config.GUI_CONF)
+        fallback = self.hypr.get_fallback_value(key, config.gui_conf())
         self.app_state.reset_to_value(key, fallback)
         self._sync_option_row(key, flash=True)
         self._notify_ui_change()
@@ -902,6 +934,9 @@ class HyprModWindow(Adw.ApplicationWindow):
         new_val = not action.get_state().get_boolean()
         action.set_state(GLib.Variant.new_boolean(new_val))
         self.auto_save = new_val
+
+        if self._settings_page:
+            self._settings_page.sync_auto_save(new_val)
 
         # If just enabled and there are unsaved changes, save immediately
         if new_val and self.has_dirty():

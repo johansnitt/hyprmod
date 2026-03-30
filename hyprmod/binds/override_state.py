@@ -102,7 +102,7 @@ class OverrideTracker:
         """
         if self._document is None:
             return None
-        excluded = frozenset({Path(config.GUI_CONF).resolve()})
+        excluded = frozenset({Path(config.gui_conf()).resolve()})
         config_order: list[tuple] = []
         for kw in self._document.find_all("bind*", exclude_sources=excluded):
             expanded = self._document.expand(kw.raw.strip())
@@ -180,10 +180,10 @@ class OverrideTracker:
         manual line splitting) so parsing stays consistent with the library.
         """
         self._saved_overrides.clear()
-        if not config.GUI_CONF.exists():
+        if not config.gui_conf().exists():
             return
 
-        doc = load_document(config.GUI_CONF, follow_sources=False)
+        doc = load_document(config.gui_conf(), follow_sources=False)
 
         # Walk all lines in document order, pairing unbind -> next bind.
         # Assignments between unbind and bind break the pairing.
@@ -239,7 +239,7 @@ class OverrideTracker:
         """
         if self._document is None:
             return None
-        excluded = frozenset({Path(config.GUI_CONF).resolve()})
+        excluded = frozenset({Path(config.gui_conf()).resolve()})
         for kw in reversed(self._document.find_all("bind*", exclude_sources=excluded)):
             expanded = self._document.expand(kw.raw.strip())
             bd = parse_bind_line(expanded)

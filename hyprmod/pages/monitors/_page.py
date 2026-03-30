@@ -416,7 +416,7 @@ class MonitorsPage:
         doc = self._window.hypr.document
         if doc is None:
             return
-        excluded = frozenset({config.GUI_CONF.resolve()})
+        excluded = frozenset({config.gui_conf().resolve()})
         user_lines = doc.find_all("monitor", exclude_sources=excluded)
         # Find the last matching line (Hyprland semantics)
         parts: list[str] = []

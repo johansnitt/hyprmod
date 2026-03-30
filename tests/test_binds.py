@@ -96,20 +96,20 @@ class TestOverrideParsing:
         import os
         import tempfile
         from pathlib import Path
-        from unittest.mock import patch
 
-        import hyprmod.core.config as cfg
+        from hyprmod.core.config import set_gui_conf
 
-        # Write config to a temp file and patch GUI_CONF
+        # Write config to a temp file and temporarily set gui_conf
         fd, path = tempfile.mkstemp(suffix=".conf")
         try:
             os.write(fd, config_text.encode())
             os.close(fd)
-            with patch.object(cfg, "GUI_CONF", Path(path)):
-                tracker = OverrideTracker(all_hypr_binds)
-                tracker.parse_saved_overrides(owned_binds)
-                return tracker
+            set_gui_conf(Path(path))
+            tracker = OverrideTracker(all_hypr_binds)
+            tracker.parse_saved_overrides(owned_binds)
+            return tracker
         finally:
+            set_gui_conf(None)
             os.unlink(path)
 
     def test_same_combo_override(self):
@@ -220,18 +220,18 @@ class TestRefilterHyprBinds:
         import os
         import tempfile
         from pathlib import Path
-        from unittest.mock import patch
 
-        import hyprmod.core.config as cfg
+        from hyprmod.core.config import set_gui_conf
 
         config_text = "unbind = SUPER, Q\nbind = SUPER SHIFT, Q, killactive,\n"
         fd, path = tempfile.mkstemp(suffix=".conf")
         try:
             os.write(fd, config_text.encode())
             os.close(fd)
-            with patch.object(cfg, "GUI_CONF", Path(path)):
-                tracker.mark_saved(owned)
+            set_gui_conf(Path(path))
+            tracker.mark_saved(owned)
         finally:
+            set_gui_conf(None)
             os.unlink(path)
 
         filtered = tracker.filter_hypr_binds(owned)
@@ -343,9 +343,6 @@ class TestOverrideFlow:
         import os
         import tempfile
         from pathlib import Path
-        from unittest.mock import patch
-
-        import hyprmod.core.config as cfg
 
         hypr_q = _mkbind(["SUPER"], "Q", "killactive", owned=False)
         tracker = OverrideTracker([hypr_q])
@@ -353,14 +350,17 @@ class TestOverrideFlow:
         tracker.add_override(0, hypr_q)
 
         # Save
+        from hyprmod.core.config import set_gui_conf
+
         config_text = "unbind = SUPER, Q\nbind = SUPER SHIFT, Q, killactive,\n"
         fd, path = tempfile.mkstemp(suffix=".conf")
         try:
             os.write(fd, config_text.encode())
             os.close(fd)
-            with patch.object(cfg, "GUI_CONF", Path(path)):
-                tracker.mark_saved(owned)
+            set_gui_conf(Path(path))
+            tracker.mark_saved(owned)
         finally:
+            set_gui_conf(None)
             os.unlink(path)
 
         assert tracker.has_original(0)

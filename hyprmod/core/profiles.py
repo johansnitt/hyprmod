@@ -12,7 +12,7 @@ from pathlib import Path
 from hyprland_config import atomic_write
 from hyprland_state import HyprlandState
 
-from hyprmod.core.config import GUI_CONF, HYPRMOD_DIR, parse_conf
+from hyprmod.core.config import HYPRMOD_DIR, gui_conf, parse_conf
 
 _PROFILES_DIR = HYPRMOD_DIR / "profiles"
 _META_FILE = "meta.json"
@@ -99,8 +99,8 @@ def save_current_as(name: str, description: str = "") -> str:
     pdir = _profile_dir(profile_id)
     pdir.mkdir(parents=True, exist_ok=True)
     conf_dest = pdir / "hyprland-gui.conf"
-    if GUI_CONF.exists():
-        _copy_file_atomic(GUI_CONF, conf_dest)
+    if gui_conf().exists():
+        _copy_file_atomic(gui_conf(), conf_dest)
     now = _now_iso()
     _write_meta(
         profile_id,
@@ -121,8 +121,8 @@ def update(profile_id: str) -> None:
     if not pdir.exists():
         return
     conf_dest = pdir / "hyprland-gui.conf"
-    if GUI_CONF.exists():
-        _copy_file_atomic(GUI_CONF, conf_dest)
+    if gui_conf().exists():
+        _copy_file_atomic(gui_conf(), conf_dest)
     meta = _read_meta(profile_id)
     meta["modified_at"] = _now_iso()
     _write_meta(profile_id, meta)
@@ -134,7 +134,7 @@ def activate_meta(profile_id: str) -> bool:
     conf_src = pdir / "hyprland-gui.conf"
     if not conf_src.exists():
         return False
-    _copy_file_atomic(conf_src, GUI_CONF)
+    _copy_file_atomic(conf_src, gui_conf())
     set_active_id(profile_id)
     return True
 
