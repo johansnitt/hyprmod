@@ -87,6 +87,7 @@ class HyprModWindow(Adw.ApplicationWindow):
 
     def _init_settings(self):
         """Load GSettings for app preferences (auto-save, etc.)."""
+        self._recompile_schemas_if_stale()
         schema_source = Gio.SettingsSchemaSource.new_from_directory(
             str(GSETTINGS_DIR),
             Gio.SettingsSchemaSource.get_default(),
@@ -97,6 +98,21 @@ class HyprModWindow(Adw.ApplicationWindow):
             self._settings = Gio.Settings.new_full(schema_obj, None, None)
         else:
             self._settings = None
+
+    @staticmethod
+    def _recompile_schemas_if_stale():
+        """Recompile GSettings schemas if the compiled file is stale or missing."""
+        compiled = GSETTINGS_DIR / "gschemas.compiled"
+        xml = GSETTINGS_DIR / "com.github.hyprmod.gschema.xml"
+        if not xml.exists():
+            return
+        if not compiled.exists() or compiled.stat().st_mtime < xml.stat().st_mtime:
+            import subprocess
+
+            subprocess.run(
+                ["glib-compile-schemas", str(GSETTINGS_DIR)],
+                check=False,
+            )
 
     def _apply_saved_config_path(self):
         """Apply the config-path setting from GSettings on startup."""
