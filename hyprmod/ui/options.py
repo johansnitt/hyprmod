@@ -14,7 +14,7 @@ from hyprland_config import Color
 
 from hyprmod.ui.row_actions import RowActions
 from hyprmod.ui.signals import SignalBlocker
-from hyprmod.ui.sources import get_source_values
+from hyprmod.ui.sources import MissingDependencyError, get_source_values
 from hyprmod.ui.timer import Timer
 
 _SHAKE_OFFSETS = (0, -4, 4, -3, 3, -1, 0)
@@ -640,7 +640,12 @@ class SourceComboOptionRow(OptionRow):
 
     def _populate(self, select_value=None):
         """Rebuild the dropdown items from the source."""
-        values = get_source_values(self._source_name, **self._source_args)
+        try:
+            values = get_source_values(self._source_name, **self._source_args)
+        except MissingDependencyError as exc:
+            self.row.set_subtitle(exc.message)  # type: ignore[union-attr]
+            self.row.set_sensitive(False)
+            return
         self._labels = [v["label"] for v in values]
         self._ids = [v["id"] for v in values]
 
@@ -675,10 +680,24 @@ class MultiSourceOptionRow(OptionRow):
 
     def __init__(self, option, value, on_change, on_reset, on_discard=None):
         self._source_name = option["source"]
-        source_values = get_source_values(self._source_name)
-        self._all_items = {v["id"]: v for v in source_values}
         self._selected: list[str] = []
         self._selected_rows: list[Adw.ActionRow] = []
+        self._unavailable = False
+
+        try:
+            source_values = get_source_values(self._source_name)
+        except MissingDependencyError as exc:
+            self._unavailable = True
+            self._all_items = {}
+            row = Adw.ExpanderRow(
+                title=option.get("label", option["key"]),
+                subtitle=exc.message,
+            )
+            row.set_sensitive(False)
+            super().__init__(row, option, on_change, on_reset, on_discard)
+            return
+
+        self._all_items = {v["id"]: v for v in source_values}
 
         # Main expander row
         row = Adw.ExpanderRow(
@@ -869,12 +888,16 @@ class MultiSourceOptionRow(OptionRow):
 
     def refresh_source(self, **kwargs):
         """Re-populate the available items from the source."""
+        if self._unavailable:
+            return
         source_values = get_source_values(self._source_name, **kwargs)
         self._all_items = {v["id"]: v for v in source_values}
         self._rebuild_selected_rows()
         self._rebuild_picker_model()
 
     def _set_widget_value(self, value):
+        if self._unavailable:
+            return
         self._selected.clear()
         val_str = str(value) if value else ""
         if val_str:

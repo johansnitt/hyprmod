@@ -7,11 +7,25 @@ Register new sources by adding them to the _SOURCES dict.
 import functools
 from collections.abc import Callable
 
-from gi.repository import GnomeDesktop  # type: ignore[attr-defined]
+import gi
+
+
+class MissingDependencyError(Exception):
+    """A system dependency required by a source provider is not available."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
 
 
 @functools.cache
-def _get_xkb_info() -> GnomeDesktop.XkbInfo:
+def _get_xkb_info():
+    try:
+        gi.require_version("GnomeDesktop", "4.0")
+    except ValueError:
+        raise MissingDependencyError("Install gnome-desktop-4 for keyboard layout data")
+    from gi.repository import GnomeDesktop  # type: ignore[attr-defined]
+
     return GnomeDesktop.XkbInfo()
 
 
@@ -75,4 +89,9 @@ def get_source_values(source_name: str, **kwargs) -> list[dict]:
     provider = _SOURCES.get(source_name)
     if provider is None:
         return []
-    return provider(**kwargs)
+    try:
+        return provider(**kwargs)
+    except MissingDependencyError:
+        raise
+    except ValueError:
+        return []
